@@ -1,0 +1,22 @@
+{
+  "name": "tokenloom-examples",
+  "version": "1.0.0",
+  "description": "Examples for TokenLoom streaming text parser",
+  "type": "module",
+  "scripts": {
+    "basic": "node basic-parsing.js",
+    "streaming": "node streaming-simulation.js",
+    "plugins": "node custom-plugin.js",
+    "async": "node async-processing.js",
+    "all": "npm run basic && npm run streaming && npm run plugins && npm run async"
+  },
+  "keywords": [
+    "tokenloom",
+    "examples",
+    "streaming",
+    "parser",
+    "text-processing"
+  ],
+  "author": "",
+  "license": "MIT"
+}

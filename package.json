@@ -1,0 +1,50 @@
+{
+  "name": "tokenloom",
+  "version": "0.0.1",
+  "description": "A streaming text parser with custom tag and code fence detection for Node.js",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.esm.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "clean": "rimraf dist",
+    "prebuild": "npm run clean",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "typescript",
+    "nodejs",
+    "streaming",
+    "parser",
+    "text-processing",
+    "markdown",
+    "code-fence",
+    "custom-tags",
+    "plugin-system"
+  ],
+  "author": "Alaa-eddine KADDOURI",
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@types/node": "^20.8.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "esbuild": "^0.19.5",
+    "rimraf": "^5.0.5",
+    "rollup": "^4.0.0",
+    "rollup-plugin-dts": "^6.1.1",
+    "rollup-plugin-esbuild": "^6.1.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.2.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,5 @@
+// Main test suite - imports all split test files
+import "./core.test";
+import "./streaming.test";
+import "./plugins.test";
+import "./examples.test";
