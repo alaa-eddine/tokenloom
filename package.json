@@ -7,8 +7,7 @@
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist",
-    "media"
+    "dist"
   ],
   "scripts": {
     "build": "rollup -c",
