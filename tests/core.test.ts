@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { TokenLoom, Event } from "../src/index";
 
+// Helper function to collect events from parser
+function collectEvents(parser: TokenLoom): Event[] {
+  const events: Event[] = [];
+  parser.on("*", (event) => {
+    events.push(event);
+  });
+  return events;
+}
+
 describe("FluxLoom Core Functionality", () => {
   it("should create an instance with default options", () => {
     const parser = new TokenLoom();
@@ -9,14 +18,7 @@ describe("FluxLoom Core Functionality", () => {
 
   it("should handle simple text without tags or fences", () => {
     const parser = new TokenLoom();
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     parser.feed({ text: "Hello world" });
     parser.flush();
@@ -28,14 +30,7 @@ describe("FluxLoom Core Functionality", () => {
 
   it("should handle custom tags", () => {
     const parser = new TokenLoom({ tags: ["think"] });
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     parser.feed({ text: "<think>reasoning</think>" });
     parser.flush();
@@ -51,14 +46,7 @@ describe("FluxLoom Core Functionality", () => {
 
   it("should handle code fences", () => {
     const parser = new TokenLoom();
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     parser.feed({ text: '```javascript\nconsole.log("hello");\n```' });
     parser.flush();
@@ -86,14 +74,7 @@ describe("FluxLoom Core Functionality", () => {
 
     for (const testCase of testCases) {
       const parser = new TokenLoom({ emitUnit: testCase.unit });
-      const events: Event[] = [];
-
-      parser.use({
-        name: "collector",
-        onEvent(event) {
-          events.push(event);
-        },
-      });
+      const events = collectEvents(parser);
 
       parser.feed({ text: "Hello world test" });
       parser.flush();
@@ -107,14 +88,7 @@ describe("FluxLoom Core Functionality", () => {
 
   it("should handle context tracking correctly", () => {
     const parser = new TokenLoom({ tags: ["outer"] });
-    const events: Event[] = [];
-
-    parser.use({
-      name: "context-checker",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     parser.feed({ text: "before <outer>inside</outer> after" });
     parser.flush();

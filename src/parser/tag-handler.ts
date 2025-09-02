@@ -52,13 +52,23 @@ export class TagHandler extends BaseHandler {
       const toSegment = this.state.segHold + (this.state.textHold || "");
       this.state.segHold = "";
       for (const tok of segment(toSegment, this.opts.emitUnit)) {
-        events.push({ type: "text", text: tok, in: this.state.context });
+        events.push({
+          type: "text",
+          text: tok,
+          in: this.state.context,
+          context: {},
+        });
       }
       this.state.textHold = "";
     }
     // consume close tag
     this.state.buffer = rest.slice(m[0].length);
-    events.push({ type: "tag-close", name, in: this.state.context });
+    events.push({
+      type: "tag-close",
+      name,
+      in: this.state.context,
+      context: {},
+    });
     {
       const { inTag: _drop, ...restCtx } = this.state.context as Record<
         string,

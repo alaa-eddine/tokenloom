@@ -41,25 +41,91 @@ function* fallbackGraphemes(input: string): Iterable<string> {
 }
 
 function* fallbackWords(input: string): Iterable<string> {
-  // Simple heuristic word splitter: sequences of letters/digits/underscore vs whitespace/punct
+  // Enhanced word splitter that treats comment operators as single units
+  let i = 0;
   let buf = "";
   let lastIsWord = false as boolean | null;
-  for (const ch of Array.from(input)) {
+
+  while (i < input.length) {
+    const ch = input[i];
+    const next = input[i + 1];
+
+    // Special handling for comment operators
+    if (ch === "/" && (next === "/" || next === "*")) {
+      // Flush current buffer if any
+      if (buf) {
+        yield buf;
+        buf = "";
+        lastIsWord = null;
+      }
+      // Emit the comment operator as a single unit
+      yield input.slice(i, i + 2);
+      i += 2;
+      continue;
+    }
+
+    // Handle closing comment */
+    if (ch === "*" && next === "/") {
+      // Flush current buffer if any
+      if (buf) {
+        yield buf;
+        buf = "";
+        lastIsWord = null;
+      }
+      // Emit the closing comment as a single unit
+      yield input.slice(i, i + 2);
+      i += 2;
+      continue;
+    }
+
+    // Regular word/punctuation logic
     const isWord = /[\p{L}\p{N}_]/u.test(ch);
     if (lastIsWord === null) {
       buf = ch;
       lastIsWord = isWord;
-      continue;
-    }
-    if (isWord === lastIsWord) {
+    } else if (isWord === lastIsWord) {
       buf += ch;
     } else {
       if (buf) yield buf;
       buf = ch;
       lastIsWord = isWord;
     }
+    i++;
   }
   if (buf) yield buf;
+}
+
+function* enhancedWordSegmentation(input: string): Iterable<string> {
+  // Try to use Intl.Segmenter first, but post-process to merge comment operators
+  const seg = createIntlSegmenter("word");
+  if (seg) {
+    const segments = Array.from(iterateIntlSegments(seg, input));
+    let i = 0;
+    while (i < segments.length) {
+      const current = segments[i];
+      const next = segments[i + 1];
+
+      // Merge // and /* into single tokens
+      if (current === "/" && (next === "/" || next === "*")) {
+        yield current + next;
+        i += 2;
+        continue;
+      }
+
+      // Merge */ into single token
+      if (current === "*" && next === "/") {
+        yield current + next;
+        i += 2;
+        continue;
+      }
+
+      yield current;
+      i++;
+    }
+  } else {
+    // Fall back to our custom implementation
+    yield* fallbackWords(input);
+  }
 }
 
 export function* segment(input: string, unit: EmitUnit): Iterable<string> {
@@ -94,12 +160,6 @@ export function* segment(input: string, unit: EmitUnit): Iterable<string> {
     }
     return;
   }
-  // word
-  const seg = createIntlSegmenter("word");
-  if (seg) {
-    // Intl.Segmenter with word granularity returns words, spaces, punctuation. We emit all.
-    yield* iterateIntlSegments(seg, input);
-  } else {
-    yield* fallbackWords(input);
-  }
+  // word - use custom segmentation that handles comment operators
+  yield* enhancedWordSegmentation(input);
 }

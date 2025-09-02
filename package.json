@@ -1,6 +1,6 @@
 {
   "name": "tokenloom",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A streaming text parser with custom tag and code fence detection for Node.js",
   "type": "module",
   "main": "dist/index.cjs",
@@ -45,6 +45,6 @@
     "vitest": "^3.2.4"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=18"
   }
 }

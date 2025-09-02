@@ -22,7 +22,7 @@ export default defineConfig([
         rootDir: "src",
       }),
       esbuild({
-        target: "node20",
+        target: "node18",
         minify: false,
       }),
     ],
@@ -41,7 +41,7 @@ export default defineConfig([
     },
     plugins: [
       esbuild({
-        target: "node20",
+        target: "node18",
         minify: false,
       }),
     ],

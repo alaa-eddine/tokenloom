@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Event, TokenLoom, LoggerPlugin } from "../src/index";
 
+// Helper function to collect events from parser
+function collectEvents(parser: TokenLoom): Event[] {
+  const events: Event[] = [];
+  parser.on("*", (event) => {
+    events.push(event);
+  });
+  return events;
+}
+
 // Utility: break a string into random chunks of 3–6 chars
 function* randomChunks(str: string, seed: number = 42) {
   let i = 0;
@@ -44,17 +53,11 @@ describe("Example Usage Tests", () => {
     });
 
     const logMessages: string[] = [];
-    const events: Event[] = [];
+    const events = collectEvents(parser);
 
     // Add a simple plugin that logs events
     const logger = new LoggerPlugin((msg) => logMessages.push(msg));
     parser.use(logger);
-    parser.use({
-      name: "event-collector",
-      onEvent: (e) => {
-        events.push(e);
-      },
-    });
 
     // Feed the parser chunk by chunk
     for (const chunk of randomChunks(input)) {
@@ -110,11 +113,7 @@ The final answer is ready.
       tags: ["think"],
     });
 
-    const events: Event[] = [];
-    parser.use({
-      name: "collector",
-      onEvent: (e) => events.push(e),
-    });
+    const events = collectEvents(parser);
 
     // Feed in chunks
     for (const chunk of randomChunks(complexInput, 789)) {
@@ -165,11 +164,7 @@ Final text.
       tags: ["tag1", "tag2", "unclosed"],
     });
 
-    const events: Event[] = [];
-    parser.use({
-      name: "collector",
-      onEvent: (e) => events.push(e),
-    });
+    const events = collectEvents(parser);
 
     for (const chunk of randomChunks(edgeCaseInput, 999)) {
       parser.feed({ text: chunk });

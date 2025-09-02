@@ -98,11 +98,16 @@ export class StreamingParser {
             type: "code-fence-chunk",
             text: tok,
             in: this.state.context,
+            context: {},
           });
         }
         this.state.textHold = "";
       }
-      events.push({ type: "code-fence-end", in: this.state.context });
+      events.push({
+        type: "code-fence-end",
+        in: this.state.context,
+        context: {},
+      });
       {
         const { inCodeFence: _drop, ...rest } = this.state.context as Record<
           string,
@@ -118,7 +123,7 @@ export class StreamingParser {
       events.push(...flushTextHold(this.state, this.opts));
     }
 
-    events.push({ type: "flush" });
+    events.push({ type: "flush", context: {} });
     this.state.buffer = "";
     return events;
   }

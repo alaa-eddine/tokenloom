@@ -1,4 +1,4 @@
-import type { IPluginAPI } from "../types";
+import type { Event, IPluginAPI } from "../types";
 import { Plugin } from "./plugin.class";
 
 export class TextCollectorPlugin extends Plugin {
@@ -9,9 +9,10 @@ export class TextCollectorPlugin extends Plugin {
     return this.buffer;
   }
 
-  onEvent(e: any, _api: IPluginAPI): void {
-    if (e.type === "text" || e.type === "code-fence-chunk") {
-      this.buffer += e.text;
+  postTransform(event: Event, _api: IPluginAPI): Event {
+    if (event.type === "text" || event.type === "code-fence-chunk") {
+      this.buffer += event.text;
     }
+    return event; // Pass through unchanged
   }
 }

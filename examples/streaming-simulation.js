@@ -48,7 +48,7 @@ const COLORS = {
 };
 
 const writeColored = (s, color) =>
-  process.stdout.write(color + s + COLORS.reset + "#");
+  process.stdout.write(color + s + COLORS.reset);
 
 // Utility function to break text into random chunks (3-6 characters)
 function* randomChunks(text, seed = 42) {
@@ -83,48 +83,42 @@ let chunkCount = 0;
 let eventCount = 0;
 const eventTypes = new Set();
 
-// Add custom plugin to track events
-parser.use({
-  name: "event-tracker",
-  onEvent(event) {
-    eventCount++;
-    eventTypes.add(event.type);
+// Listen to events directly on the parser
+parser.on("*", (event) => {
+  eventCount++;
+  eventTypes.add(event.type);
+});
 
-    switch (event.type) {
-      case "tag-open": {
-        writeColored(`<${event.name}>`, COLORS.tag);
-        break;
-      }
-      case "tag-close": {
-        writeColored(`</${event.name}>`, COLORS.tag);
-        break;
-      }
-      case "code-fence-start": {
-        const lang = event.lang ? event.lang : "";
-        writeColored(`\n\`\`\`${lang}\n`, COLORS.code);
-        break;
-      }
-      case "code-fence-chunk": {
-        writeColored(event.text, COLORS.code);
-        break;
-      }
-      case "code-fence-end": {
-        writeColored(`\n\`\`\`\n`, COLORS.code);
-        break;
-      }
-      case "text": {
-        const inTagName = event.in?.inTag?.name;
-        const color =
-          inTagName === "think"
-            ? COLORS.think
-            : inTagName === "plan"
-            ? COLORS.plan
-            : COLORS.text;
-        writeColored(event.text, color);
-        break;
-      }
-    }
-  },
+parser.on("tag-open", (event) => {
+  writeColored(`<${event.name}>`, COLORS.tag);
+});
+
+parser.on("tag-close", (event) => {
+  writeColored(`</${event.name}>`, COLORS.tag);
+});
+
+parser.on("code-fence-start", (event) => {
+  const lang = event.lang ? event.lang : "";
+  writeColored(`\n\`\`\`${lang}\n`, COLORS.code);
+});
+
+parser.on("code-fence-chunk", (event) => {
+  writeColored(event.text, COLORS.code);
+});
+
+parser.on("code-fence-end", (event) => {
+  writeColored(`\n\`\`\`\n`, COLORS.code);
+});
+
+parser.on("text", (event) => {
+  const inTagName = event.in?.inTag?.name;
+  const color =
+    inTagName === "think"
+      ? COLORS.think
+      : inTagName === "plan"
+      ? COLORS.plan
+      : COLORS.text;
+  writeColored(event.text, color);
 });
 
 console.log("📦 Feeding random chunks to parser...\n");

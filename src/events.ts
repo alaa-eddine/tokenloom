@@ -1,10 +1,21 @@
-import type { Context, Event, IPlugin, IPluginAPI } from "./types";
+import type {
+  Context,
+  Event,
+  IPlugin,
+  IPluginAPI,
+  ParserOptions,
+} from "./types";
 
 export class EventBus {
   private listeners: IPlugin[] = [];
   private outputBuffer: string[] = [];
   private context: Context = {};
   private drainResolvers: Array<() => void> = [];
+  private suppressPluginErrors: boolean;
+
+  constructor(options?: ParserOptions) {
+    this.suppressPluginErrors = options?.suppressPluginErrors ?? false;
+  }
 
   use(plugin: IPlugin): void {
     this.listeners.push(plugin);
@@ -68,6 +79,15 @@ export class EventBus {
   }
 
   emit(event: Event): void {
+    // Transform the event through the plugin pipeline before emitting
+    const transformedEvents = this.transformEvent(event);
+
+    for (const transformedEvent of transformedEvents) {
+      this.emitTransformedEvent(transformedEvent);
+    }
+  }
+
+  transformEvent(event: Event): Event[] {
     const effectiveState: Context =
       "in" in event && (event as any).in
         ? ((event as any).in as Context)
@@ -78,53 +98,91 @@ export class EventBus {
       },
       state: effectiveState,
     };
-    for (const l of this.listeners) {
-      if (!l.onEvent) continue;
+
+    let events: Event[] = [event];
+
+    // Pre-transform phase
+    for (const plugin of this.listeners) {
+      if (!plugin.preTransform) continue;
       try {
-        const maybePromise = l.onEvent(event, api) as unknown;
-        if (
-          maybePromise &&
-          typeof (maybePromise as Promise<void>).then === "function"
-        ) {
-          (maybePromise as Promise<void>).catch((err) => {
-            const reason = err instanceof Error ? err.message : String(err);
-            const errorEvent: Event = {
-              type: "error",
-              reason,
-              recoverable: true,
-            };
-            for (const l2 of this.listeners) {
-              try {
-                const mp = l2.onEvent?.(errorEvent, api) as unknown;
-                if (mp && typeof (mp as Promise<void>).then === "function") {
-                  (mp as Promise<void>).catch(() => {
-                    // swallow nested plugin promise rejections
-                  });
-                }
-              } catch {
-                // ignore nested plugin errors
-              }
-            }
-          });
-        }
-      } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err);
-        const errorEvent: Event = { type: "error", reason, recoverable: true };
-        // Fan out error to all listeners, but swallow any further errors
-        for (const l2 of this.listeners) {
-          try {
-            const mp = l2.onEvent?.(errorEvent, api) as unknown;
-            if (mp && typeof (mp as Promise<void>).then === "function") {
-              (mp as Promise<void>).catch(() => {
-                // swallow nested plugin promise rejections
-              });
-            }
-          } catch {
-            // ignore nested plugin errors
+        const newEvents: Event[] = [];
+        for (const evt of events) {
+          const result = plugin.preTransform(evt, api);
+          if (result === null) {
+            // Plugin filtered out this event
+            continue;
+          } else if (Array.isArray(result)) {
+            newEvents.push(...result);
+          } else {
+            newEvents.push(result);
           }
+        }
+        events = newEvents;
+      } catch (err) {
+        // Handle transform errors gracefully
+        if (!this.suppressPluginErrors) {
+          console.warn(`Plugin ${plugin.name} preTransform error:`, err);
         }
       }
     }
+
+    // Transform phase
+    for (const plugin of this.listeners) {
+      if (!plugin.transform) continue;
+      try {
+        const newEvents: Event[] = [];
+        for (const evt of events) {
+          const result = plugin.transform(evt, api);
+          if (result === null) {
+            // Plugin filtered out this event
+            continue;
+          } else if (Array.isArray(result)) {
+            newEvents.push(...result);
+          } else {
+            newEvents.push(result);
+          }
+        }
+        events = newEvents;
+      } catch (err) {
+        // Handle transform errors gracefully
+        if (!this.suppressPluginErrors) {
+          console.warn(`Plugin ${plugin.name} transform error:`, err);
+        }
+      }
+    }
+
+    // Post-transform phase
+    for (const plugin of this.listeners) {
+      if (!plugin.postTransform) continue;
+      try {
+        const newEvents: Event[] = [];
+        for (const evt of events) {
+          const result = plugin.postTransform(evt, api);
+          if (result === null) {
+            // Plugin filtered out this event
+            continue;
+          } else if (Array.isArray(result)) {
+            newEvents.push(...result);
+          } else {
+            newEvents.push(result);
+          }
+        }
+        events = newEvents;
+      } catch (err) {
+        // Handle transform errors gracefully
+        if (!this.suppressPluginErrors) {
+          console.warn(`Plugin ${plugin.name} postTransform error:`, err);
+        }
+      }
+    }
+
+    return events;
+  }
+
+  private emitTransformedEvent(event: Event): void {
+    // This method is no longer needed since we emit directly from TokenLoom
+    // But we keep it for the old emit() method compatibility
+
     // resolve any waiters after event dispatch, in case they depend on output
     if (this.drainResolvers.length && this.outputBuffer.length) {
       const rs = [...this.drainResolvers];

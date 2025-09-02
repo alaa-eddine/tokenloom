@@ -6,6 +6,15 @@ import {
   TextCollectorPlugin,
 } from "../src/index";
 
+// Helper function to collect events from parser
+function collectEvents(parser: TokenLoom): Event[] {
+  const events: Event[] = [];
+  parser.on("*", (event) => {
+    events.push(event);
+  });
+  return events;
+}
+
 // Utility: break a string into random chunks of 3–6 chars
 function* randomChunks(str: string, seed: number = 42) {
   let i = 0;
@@ -54,15 +63,8 @@ And we are done.
       tags: ["think", "plan"],
     });
 
-    const events: Event[] = [];
+    const events = collectEvents(parser);
     const logMessages: string[] = [];
-
-    parser.use({
-      name: "test-collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
 
     const logger = new LoggerPlugin((msg) => logMessages.push(msg));
     parser.use(logger);
@@ -138,14 +140,7 @@ And we are done.
 
   it("should handle incomplete chunks at buffer boundary", () => {
     const parser = new TokenLoom({ tags: ["tag"] });
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     // Feed incomplete tag
     parser.feed({ text: "<ta" });
@@ -161,14 +156,7 @@ And we are done.
 
   it("should handle malformed tags gracefully", () => {
     const parser = new TokenLoom({ tags: ["test"] });
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     // Test unclosed tag
     parser.feed({ text: "<test>content without close" });
@@ -184,14 +172,7 @@ And we are done.
       bufferLength: 10, // Very small buffer
       tags: ["test"],
     });
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     // Feed text that exceeds buffer length
     parser.feed({ text: "This is a very long text that exceeds the buffer" });
@@ -207,14 +188,7 @@ And we are done.
       tags: ["test"],
       specBufferLength: 5, // Very small special buffer
     });
-    const events: Event[] = [];
-
-    parser.use({
-      name: "collector",
-      onEvent(event) {
-        events.push(event);
-      },
-    });
+    const events = collectEvents(parser);
 
     // Feed incomplete tag that exceeds special buffer length
     parser.feed({ text: "<test-very-long-tag-name" });

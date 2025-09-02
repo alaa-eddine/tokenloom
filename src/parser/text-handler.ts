@@ -64,6 +64,7 @@ export class TextHandler extends BaseHandler {
           name: tag,
           attrs,
           in: this.state.context,
+          context: {},
         });
         this.state.buffer = special.slice(endIdx);
         this.state.mode = "in-tag";
@@ -125,6 +126,7 @@ export class TextHandler extends BaseHandler {
         fence,
         lang,
         in: this.state.context,
+        context: {},
       });
       // consume the whole opening fence line including newline
       this.state.buffer = special.slice(eolIdx + 1);

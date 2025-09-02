@@ -64,7 +64,11 @@ export class FenceHandler extends BaseHandler {
       this.state.fenceHold = "";
     }
     // emit end
-    events.push({ type: "code-fence-end", in: this.state.context });
+    events.push({
+      type: "code-fence-end",
+      in: this.state.context,
+      context: {},
+    });
     this.state.context = { ...this.state.context, inCodeFence: null };
     this.state.currentFence = null;
     this.state.mode = "text";

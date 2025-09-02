@@ -5,24 +5,61 @@ export type EmitUnit = "token" | "word" | "grapheme";
 export type FenceMarker = "```" | "~~~";
 
 export type Event =
-  | { type: "text"; text: string; in?: Context }
+  | {
+      type: "text";
+      text: string;
+      in?: Context;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
   | {
       type: "tag-open";
       name: string;
       attrs: Record<string, string>;
       in?: Context;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
     }
-  | { type: "tag-close"; name: string; in?: Context }
+  | {
+      type: "tag-close";
+      name: string;
+      in?: Context;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
   | {
       type: "code-fence-start";
       fence: FenceMarker;
       lang?: string;
       in?: Context;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
     }
-  | { type: "code-fence-chunk"; text: string; in?: Context }
-  | { type: "code-fence-end"; in?: Context }
-  | { type: "flush" }
-  | { type: "error"; reason: string; recoverable: boolean };
+  | {
+      type: "code-fence-chunk";
+      text: string;
+      in?: Context;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
+  | {
+      type: "code-fence-end";
+      in?: Context;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
+  | {
+      type: "flush";
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
+  | {
+      type: "error";
+      reason: string;
+      recoverable: boolean;
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    };
 
 export type Context = {
   inTag?: { name: string; attrs: Record<string, string> } | null;
@@ -46,13 +83,22 @@ export interface ParserOptions {
    * very small chunks arrive (e.g., 1–3 chars). Defaults to 10.
    */
   specMinParseLength?: number;
+  /**
+   * Whether to suppress plugin error logging to console. Defaults to false.
+   * Useful for testing or when you want to handle plugin errors silently.
+   */
+  suppressPluginErrors?: boolean;
 }
 
 export interface IPlugin {
   name: string;
   onInit?(api: IPluginAPI): void | Promise<void>;
-  onEvent?(e: Event, api: IPluginAPI): void | Promise<void>;
   onDispose?(): void | Promise<void>;
+
+  // Transformation pipeline methods
+  preTransform?(event: Event, api: IPluginAPI): Event | Event[] | null;
+  transform?(event: Event, api: IPluginAPI): Event | Event[] | null;
+  postTransform?(event: Event, api: IPluginAPI): Event | Event[] | null;
 }
 
 export interface IPluginAPI {

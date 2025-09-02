@@ -41,6 +41,7 @@ export function pushSegmentedText(
       type: isFence ? "code-fence-chunk" : "text",
       text: tok,
       in: state.context,
+      context: {},
     });
   }
 }

@@ -7,7 +7,7 @@
 
 import {
   TokenLoom,
-  createTextCollectorPlugin,
+  TextCollectorPlugin,
   LoggerPlugin,
 } from "../dist/index.esm.js";
 
@@ -61,31 +61,27 @@ const logger = new LoggerPlugin((msg) => console.log(msg));
 parser.use(logger);
 
 // Add text collector to gather processed text
-const textCollector = createTextCollectorPlugin();
+const textCollector = new TextCollectorPlugin();
 parser.use(textCollector);
 
-// Add custom plugin to demonstrate event handling
-parser.use({
-  name: "custom-analyzer",
-  onEvent(event, api) {
-    switch (event.type) {
-      case "tag-open":
-        console.log(
-          `\n🏷️  Opened tag: <${event.name}> with attributes:`,
-          event.attrs
-        );
-        break;
-      case "tag-close":
-        console.log(`🏷️  Closed tag: </${event.name}>\n`);
-        break;
-      case "code-fence-start":
-        console.log(`\n💻 Code block started (${event.lang || "no language"})`);
-        break;
-      case "code-fence-end":
-        console.log(`💻 Code block ended\n`);
-        break;
-    }
-  },
+// Listen to events directly on the parser
+parser.on("tag-open", (event) => {
+  console.log(
+    `\n🏷️  Opened tag: <${event.name}> with attributes:`,
+    event.attrs
+  );
+});
+
+parser.on("tag-close", (event) => {
+  console.log(`🏷️  Closed tag: </${event.name}>\n`);
+});
+
+parser.on("code-fence-start", (event) => {
+  console.log(`\n💻 Code block started (${event.lang || "no language"})`);
+});
+
+parser.on("code-fence-end", (event) => {
+  console.log(`💻 Code block ended\n`);
 });
 
 console.log("\n" + "=".repeat(60));

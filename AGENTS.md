@@ -1,4 +1,4 @@
-# AGENTS.md
+# TokenLoom LLM Agents Instructions
 
 ## Project overview
 
@@ -7,6 +7,13 @@ TokenLoom is a TypeScript library for progressively parsing streamed text (LLM/S
 - Custom tags like `<think>...</think>` (non-nested in v1)
 - Fenced code blocks (``` or ~~~), including language info strings
 - Plain text emitted as tokens/words/graphemes
+
+**Key features:**
+
+- Plugin transformation pipeline (`preTransform`, `transform`, `postTransform`) for event processing
+- EventEmitter integration for direct event listening via `parser.on()`
+- Shared context system for persistent state coordination across events
+- Enhanced word segmentation treating comment operators (`//`, `/*`, `*/`) as single units
 
 Design intent:
 
@@ -43,6 +50,8 @@ Primary code:
 - Examples (after build):
   - `node examples/basic-parsing.js`
   - `node examples/streaming-simulation.js`
+  - `node examples/syntax-highlighting-demo.js`
+  - `node examples/pipeline-phases-demo.js`
   - `node examples/async-processing.js`
   - `node examples/custom-plugin.js`
 
@@ -82,9 +91,11 @@ All tests must pass before merging.
   - Obey `bufferLength`; flush accumulated text when exceeded.
   - `specBufferLength`: max chars to wait for special sequence completion.
   - `specMinParseLength`: min chars before attempting special sequence parsing.
+  - `suppressPluginErrors`: optional boolean to suppress plugin error console output (useful for testing).
   - `flush()` must emit any remaining text/code chunks and then a `flush` event.
 - Segmentation:
   - `emitUnit`: "token" | "word" | "grapheme"; do not split surrogate pairs; prefer `Intl.Segmenter` when available.
+  - Enhanced word segmentation treats comment operators (`//`, `/*`, `*/`) as single units for better syntax highlighting support.
 
 ## Common tasks
 
@@ -96,14 +107,40 @@ All tests must pass before merging.
   - Utilities: `src/parser/utils.ts` (findNextSpecialIndex, parseAttrs, etc.)
   - Ensure `flush()` never drops tail text
 - Plugin classes → `src/plugins/` (Plugin base class, LoggerPlugin, TextCollectorPlugin)
-  - Plugin lifecycle: onInit, onEvent, onDispose
+  - Plugin lifecycle: onInit, preTransform/transform/postTransform, onDispose
   - Plugin API: pushOutput, state (readonly context)
+  - Transformation pipeline: preTransform → transform → postTransform
 - Public API → `src/index.ts`, `src/tokenloom.ts`
+  - TokenLoom extends EventEmitter for direct event listening
+  - `getSharedContext()` provides access to persistent event context
 
 After changes:
 
 - `npm run test:run` → must be green
 - `node examples/streaming-simulation.js` → sanity check output
+- `node examples/syntax-highlighting-demo.js` → verify transformation pipeline works
+
+## Plugin system
+
+**Plugin Architecture:**
+
+- Uses transformation pipeline: `preTransform` → `transform` → `postTransform`
+- Events include `context` (shared state) and `metadata` properties
+- Direct event consumption via EventEmitter pattern: `parser.on(eventType, handler)`
+
+**Transformation Pipeline:**
+
+- `preTransform`: Early processing, metadata injection, event filtering
+- `transform`: Main content transformation, syntax highlighting, text modification
+- `postTransform`: Final processing, analytics, logging
+- Each stage can return: event unchanged, modified event, array of events, or null (filter)
+
+**Shared Context:**
+
+- `event.context`: Persistent object shared across all events in a session
+- Allows plugins to coordinate state (e.g., syntax highlighting tracking brackets/strings)
+- Access via `parser.getSharedContext()` or `event.context` in transformations
+- Always defined as empty object `{}` by default
 
 ## Pitfalls & fixes
 
@@ -111,6 +148,10 @@ After changes:
 - Fragmented fences: do not emit `code-fence-start` until the newline is seen (to capture `lang`).
 - Indented fences: allow up to 3 spaces both for opening and closing.
 - Flush must close an open fence by emitting remaining `code-fence-chunk` (if any) then `code-fence-end` and `flush`.
+- **Plugin usage**: Use transformation methods (`preTransform`, `transform`, `postTransform`); use `parser.on()` for event consumption.
+- **Context initialization**: Always check `if (!event.context.myPlugin)` before accessing plugin-specific context.
+- **Event mutation**: Transformation pipeline modifies events in-place; be careful with shared references.
+- **Comment segmentation**: Use `emitUnit: "word"` for syntax highlighting to get comment operators as single tokens.
 
 ## Security & performance
 

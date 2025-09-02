@@ -12,6 +12,8 @@ TokenLoom is a TypeScript library for progressively parsing streamed text (LLM/S
 - Fenced code blocks (``` or ~~~), including language info strings
 - Plain text emitted as tokens/words/graphemes
 
+![Demo](media/demo.gif)
+
 ## Why TokenLoom?
 
 **The Problem:** When working with streaming text from LLMs, SSE endpoints, or real-time data sources, you often need to parse structured content that arrives in arbitrary chunks. Traditional parsers fail because they expect complete, well-formed input. You might receive fragments like:
@@ -72,33 +74,28 @@ npm run build
 
 ## Quick start
 
-````ts
-import { TokenLoom, LoggerPlugin } from "tokenloom";
+```ts
+import { TokenLoom } from "tokenloom";
 
 const parser = new TokenLoom({
-  tags: ["think", "plan"], // tags to recognize
+  tags: ["think"], // tags to recognize
+  emitUnit: "word", // emit words instead of tokens
 });
 
-parser.use(new LoggerPlugin((msg) => console.log(msg)));
+// Listen to events directly
+parser.on("text", (event) => process.stdout.write(event.text));
+parser.on("tag-open", (event) => console.log(`\n[${event.name}]`));
 
-const input = `Intro\n\n<think>hidden</think>\n\n\`\`\`javascript\nconsole.log("Hello");\n\`\`\``;
+const input = `Hello <think>reasoning</think> world!`;
 
 // Simulate streaming chunks
-for (const chunk of [
-  "Intro\n\n<thi",
-  "nk>hid",
-  "den</t",
-  "hink>\n\n```java",
-  "script\nconsole.log(",
-  '"Hello");\n```',
-]) {
+for (const chunk of ["Hello <thi", "nk>reason", "ing</think> world!"]) {
   parser.feed({ text: chunk });
 }
-
 parser.flush();
-````
+```
 
-The logger plugin prints events like text, tag-open/close, code-fence-start/chunk/end, and flush.
+See `examples/` directory for advanced usage including syntax highlighting, async processing, and custom plugins.
 
 ## API overview
 
@@ -128,6 +125,11 @@ interface ParserOptions {
    * very small chunks arrive (e.g., 1–3 chars). Defaults to 10.
    */
   specMinParseLength?: number;
+  /**
+   * Whether to suppress plugin error logging to console. Defaults to false.
+   * Useful for testing or when you want to handle plugin errors silently.
+   */
+  suppressPluginErrors?: boolean;
 }
 ```
 
@@ -138,128 +140,86 @@ interface ParserOptions {
 - `feed(chunk: SourceChunk): void` – push-mode; feed streamed text
 - `flush(): void` – force flush remaining buffered content and emit `flush`
 - `dispose(): void` – cleanup resources and dispose all plugins
+- `getSharedContext(): Record<string, any>` – access the shared context object used across events
 - `[Symbol.asyncIterator](): AsyncIterator<Event>` – pull-mode consumption
+
+### Event Emitter methods
+
+TokenLoom extends Node.js EventEmitter, so you can listen to events directly:
+
+- `on(event: string, listener: Function): this` – listen to specific event types or '\*' for all events
+- `emit(event: string, ...args: any[]): boolean` – emit events (used internally)
+- All other EventEmitter methods are available (once, off, removeAllListeners, etc.)
 
 ### Events
 
-````ts
-type SourceChunk = { text: string };
+TokenLoom emits the following event types:
 
-type FenceMarker = "```" | "~~~";
+- **`text`** - Plain text content
+- **`tag-open`** - Custom tag start (e.g., `<think>`)
+- **`tag-close`** - Custom tag end (e.g., `</think>`)
+- **`code-fence-start`** - Code block start (e.g., ` ```javascript`)
+- **`code-fence-chunk`** - Code block content
+- **`code-fence-end`** - Code block end
+- **`flush`** - Parsing complete, buffers flushed
 
-type Event =
-  | { type: "text"; text: string; in?: Context }
-  | {
-      type: "tag-open";
-      name: string;
-      attrs: Record<string, string>;
-      in?: Context;
-    }
-  | { type: "tag-close"; name: string; in?: Context }
-  | {
-      type: "code-fence-start";
-      fence: FenceMarker;
-      lang?: string;
-      in?: Context;
-    }
-  | { type: "code-fence-chunk"; text: string; in?: Context }
-  | { type: "code-fence-end"; in?: Context }
-  | { type: "flush" }
-  | { type: "error"; reason: string; recoverable: boolean };
+Each event includes:
 
-type Context = {
-  inTag?: { name: string; attrs: Record<string, string> } | null;
-  inCodeFence?: { fence: FenceMarker; lang?: string } | null;
-};
-````
+- `context`: Shared object for plugin state coordination
+- `metadata`: Optional plugin-attached data
+- `in`: Current parsing context (inside tag/fence)
 
 ### Plugins
 
+Plugins use a transformation pipeline with three optional stages:
+
+- **`preTransform`** - Early processing, metadata injection
+- **`transform`** - Main content transformation
+- **`postTransform`** - Final processing, analytics
+
 ```ts
-interface IPlugin {
-  name: string;
-  onInit?(api: IPluginAPI): void | Promise<void>;
-  onEvent?(e: Event, api: IPluginAPI): void | Promise<void>;
-  onDispose?(): void | Promise<void>;
-}
-
-interface IPluginAPI {
-  pushOutput(s: string): void;
-  state: Readonly<Context>;
-}
-
-// Base class for creating plugins
-abstract class Plugin implements IPlugin {
-  abstract name: string;
-  onInit?(api: IPluginAPI): void | Promise<void>;
-  onEvent?(e: Event, api: IPluginAPI): void | Promise<void>;
-  onDispose?(): void | Promise<void>;
-}
+parser.use({
+  name: "my-plugin",
+  transform(event, api) {
+    if (event.type === "text") {
+      return { ...event, text: event.text.toUpperCase() };
+    }
+    return event;
+  },
+});
 ```
 
 **Built-in plugins:**
 
-- `LoggerPlugin(log?: (msg: string) => void)` – logs human-readable events
-- `TextCollectorPlugin()` – collects text and code fence chunks into a buffer
-- `LoggerPlugin` – class-based logger plugin
-- `TextCollectorPlugin` – class-based text collector plugin
+- `LoggerPlugin()` - Console logging
+- `TextCollectorPlugin()` - Text accumulation
+
+See `examples/syntax-highlighting-demo.js` for advanced plugin usage.
 
 ## Usage patterns
 
-### Push mode (typical for SSE/LLM streaming)
-
-````ts
-const parser = new TokenLoom({
-  tags: ["think"],
-  emitUnit: "token",
-  bufferLength: 64,
-});
-parser.use(new LoggerPlugin((msg) => console.log(msg)));
-
-function* randomChunks(str: string) {
-  let i = 0;
-  while (i < str.length) {
-    const n = 3 + Math.floor(Math.random() * 4); // 3-6 characters
-    yield str.slice(i, i + n);
-    i += n;
-  }
-}
-
-const text =
-  "<think>Hello</think>\n\n```javascript\nconsole.log('Hello world');\n```";
-for (const chunk of randomChunks(text)) {
-  parser.feed({ text: chunk });
-}
-
-parser.flush();
-````
-
-### Pull mode (AsyncIterator)
+### Streaming text processing
 
 ```ts
-const parser = new TokenLoom({ tags: ["plan"] });
+const parser = new TokenLoom({ tags: ["think"], emitUnit: "word" });
 
-async function processAsync() {
-  // Start async processing
-  const processingPromise = (async () => {
-    for await (const event of parser) {
-      console.log(`Event: ${event.type}`);
-      if (event.type === "flush") break;
-    }
-  })();
+parser.on("text", (event) => process.stdout.write(event.text));
+parser.on("tag-open", (event) => console.log(`[${event.name}]`));
 
-  // Feed data with delays to simulate streaming
-  const chunks = ["<plan>Step 1: ", "Parse input\n", "Step 2: Process</plan>"];
-  for (const chunk of chunks) {
-    parser.feed({ text: chunk });
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-
-  parser.flush();
-  await processingPromise;
+// Simulate streaming chunks
+for (const chunk of ["Hello <thi", "nk>thought</th", "ink> world"]) {
+  parser.feed({ text: chunk });
 }
+parser.flush();
+```
 
-processAsync();
+### AsyncIterator support
+
+```ts
+for await (const event of parser) {
+  console.log(`${event.type}: ${event.text || event.name || ""}`);
+  if (event.type === "flush") break;
+}
 ```
 
 ## Examples
@@ -270,11 +230,17 @@ You can run the examples after building the project:
 # Build first
 npm run build
 
-# Basic parsing with plugins
+# Basic parsing with plugins and direct event listening
 node examples/basic-parsing.js
 
 # Streaming simulation with random chunking and event tracing
 node examples/streaming-simulation.js
+
+# Syntax highlighting demo with transformation pipeline
+node examples/syntax-highlighting-demo.js
+
+# Pipeline phases demonstration
+node examples/pipeline-phases-demo.js
 
 # Async processing demo
 node examples/async-processing.js
@@ -296,61 +262,21 @@ npm run test:run        # run tests once
 npm run test:coverage   # coverage report
 ```
 
-### Repo layout
-
-- `src/` – library source
-  - `types.ts` – core types and interfaces
-  - `segment.ts` – segmentation utilities (Intl.Segmenter fallback)
-  - `events.ts` – plugin event bus
-  - `tokenloom.ts` – public API wrapper
-  - `index.ts` – library exports
-  - `plugins.ts` – plugin factory functions
-  - `parser/` – streaming parser implementation
-    - `parser.class.ts` – main streaming parser
-    - `base-handler.ts` – base handler class
-    - `text-handler.ts` – text mode handler
-    - `tag-handler.ts` – tag parsing handler
-    - `fence-handler.ts` – code fence handler
-    - `types.ts` – parser internal types
-    - `utils.ts` – parser utilities
-  - `plugins/` – built-in plugin classes
-    - `plugin.class.ts` – base plugin class
-    - `logger.plugin.ts` – logger plugin
-    - `textCollector.plugin.ts` – text collector plugin
-- `tests/` – Vitest tests
-- `examples/` – runnable examples
-
 ## Architecture & Design
 
-### Core Architecture
+TokenLoom uses a **handler-based architecture** that switches between specialized parsers:
 
-TokenLoom uses a **handler-based architecture** where different parsing modes are handled by specialized classes:
+- **TextHandler** - Plain text and special sequence detection
+- **TagHandler** - Custom tag content processing
+- **FenceHandler** - Code fence content processing
 
-- **TextHandler**: Processes plain text and detects special sequence starts
-- **TagHandler**: Handles content inside custom tags
-- **FenceHandler**: Processes code fence content
+### Key Features
 
-The parser maintains internal state and switches between handlers based on the current parsing mode.
-
-### Design Constraints
-
-- **No nesting (v1)**: Custom tags and code fences are not nested in this version
-- **Boundary robustness**: Tolerates arbitrary chunk fragmentation (e.g., `<thi` + `nk>` or ````+`javascript\n`)
-- **Progressive emission**: Emits events immediately without waiting for complete structures
-- **Buffer management**: Uses configurable buffer limits with intelligent flushing
-
-### Segmentation
-
-- **Token**: Splits by whitespace vs non-whitespace runs
-- **Word**: Uses `Intl.Segmenter` when available, falls back to simple heuristics
-- **Grapheme**: Uses `Intl.Segmenter` when available, falls back to code point iteration (prevents surrogate pair splitting)
-
-### Fence Detection
-
-- Supports both ``` and ~~~ fences
-- Allows up to 3 leading spaces for indented fences
-- Captures language info strings after fence openers
-- Handles fragmented fence sequences robustly
+- **Stream-safe**: Handles arbitrary chunk fragmentation (`<thi` + `nk>`)
+- **Progressive**: Emits events immediately, doesn't wait for completion
+- **Bounded buffers**: Configurable limits prevent memory issues
+- **Enhanced segmentation**: Comment operators (`//`, `/*`, `*/`) as single units
+- **No nesting**: Tags and fences are non-nested in v1
 
 ## Roadmap
 
@@ -358,6 +284,7 @@ The parser maintains internal state and switches between handlers based on the c
 - Markdown structures (headings, lists, etc.)
 - More robust Unicode segmentation and locale controls
 - Additional built-in plugins (terminal colorizer, markdown renderer)
+- Performance optimizations for very large streams
 
 ## License
 
