@@ -2,7 +2,7 @@
 
 <h1 align="center">
 <br/>
-<img width="400" src="media/logo.png" alt="TokenLoom" />
+<img width="400" src="https://raw.githubusercontent.com/alaa-eddine/tokenloom/main/media/logo.png" alt="TokenLoom" />
 <br/>
 </h1>
 
@@ -12,7 +12,7 @@ TokenLoom is a TypeScript library for progressively parsing streamed text (LLM/S
 - Fenced code blocks (``` or ~~~), including language info strings
 - Plain text emitted as tokens/words/graphemes
 
-![Demo](media/demo.gif)
+![Demo](https://raw.githubusercontent.com/alaa-eddine/tokenloom/main/media/demo.gif)
 
 ## Why TokenLoom?
 
