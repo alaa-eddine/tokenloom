@@ -1,13 +1,14 @@
 {
   "name": "tokenloom",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "A streaming text parser with custom tag and code fence detection for Node.js",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "media"
   ],
   "scripts": {
     "build": "rollup -c",
