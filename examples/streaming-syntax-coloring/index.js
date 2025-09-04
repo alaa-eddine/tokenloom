@@ -110,35 +110,42 @@ parser.on("text", (event) => {
   writeColored(event.text, color);
 });
 
-//console.log("📦 Feeding random chunks to parser...\n");
+async function runDemo() {
+  //console.log("📦 Feeding random chunks to parser...\n");
 
-// Simulate streaming by feeding random chunks
-for (const chunk of randomChunks(sampleText, 123)) {
-  chunkCount++;
-  //console.log(`Chunk ${chunkCount}: "${chunk}"`);
-  parser.feed({ text: chunk });
+  // Simulate streaming by feeding random chunks
+  for (const chunk of randomChunks(sampleText, 123)) {
+    chunkCount++;
+    //console.log(`Chunk ${chunkCount}: "${chunk}"`);
+    parser.feed({ text: chunk });
 
-  // Add small delay to simulate real streaming
-  await new Promise((resolve) => setTimeout(resolve, 50));
+    // Add small delay to simulate real streaming
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  //console.log("\n🔄 Flushing remaining buffer...");
+  await parser.flush();
+
+  console.log("\n" + "=".repeat(50));
+  console.log("📊 Streaming Statistics");
+  console.log("=".repeat(50));
+  console.log(`📦 Total chunks processed: ${chunkCount}`);
+  console.log(`⚡ Total events emitted: ${eventCount}`);
+  console.log(`🎯 Event types seen: ${Array.from(eventTypes).join(", ")}`);
+
+  console.log("\n✅ Syntax highlighting demo complete!");
+  console.log(
+    "\n🎨 Notice how JavaScript keywords, strings, and numbers are highlighted!"
+  );
+  console.log(
+    "🔄 The transformation pipeline processed each code chunk before emission."
+  );
+
+  process.exit(0);
 }
 
-//console.log("\n🔄 Flushing remaining buffer...");
-parser.flush();
-process.exit(0);
-console.log("\n" + "=".repeat(50));
-console.log("📊 Streaming Statistics");
-console.log("=".repeat(50));
-console.log(`📦 Total chunks processed: ${chunkCount}`);
-console.log(`⚡ Total events emitted: ${eventCount}`);
-console.log(`🎯 Event types seen: ${Array.from(eventTypes).join(", ")}`);
-
-console.log("\n✅ Syntax highlighting demo complete!");
-console.log(
-  "\n🎨 Notice how JavaScript keywords, strings, and numbers are highlighted!"
-);
-console.log(
-  "🔄 The transformation pipeline processed each code chunk before emission."
-);
+// Run the demo
+runDemo().catch(console.error);
 
 // Helper function to add delay (for Node.js compatibility)
 function delay(ms) {

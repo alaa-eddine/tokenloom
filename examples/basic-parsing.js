@@ -84,20 +84,25 @@ parser.on("code-fence-end", (event) => {
   console.log(`💻 Code block ended\n`);
 });
 
-console.log("\n" + "=".repeat(60));
-console.log("Processing sample text...");
-console.log("=".repeat(60));
+async function runExample() {
+  console.log("\n" + "=".repeat(60));
+  console.log("Processing sample text...");
+  console.log("=".repeat(60));
 
-// Process the text
-parser.feed({ text: sampleText });
-parser.flush();
+  // Process the text
+  parser.feed({ text: sampleText });
+  await parser.flush();
 
-console.log("\n" + "=".repeat(60));
-console.log("📊 Results Summary");
-console.log("=".repeat(60));
+  console.log("\n" + "=".repeat(60));
+  console.log("📊 Results Summary");
+  console.log("=".repeat(60));
 
-// Show collected text (without markup)
-console.log("\n📄 Collected Text Content:");
-console.log(textCollector.getText());
+  // Show collected text (without markup)
+  console.log("\n📄 Collected Text Content:");
+  console.log(textCollector.getText());
 
-console.log("\n✅ Parsing complete!");
+  console.log("\n✅ Parsing complete!");
+}
+
+// Run the example
+runExample().catch(console.error);

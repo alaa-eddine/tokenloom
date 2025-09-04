@@ -1,6 +1,16 @@
 export type SourceChunk = { text: string };
 
-export type EmitUnit = "token" | "word" | "grapheme";
+export namespace EmitUnit {
+  export const Token = "token" as const;
+  export const Word = "word" as const;
+  export const Grapheme = "grapheme" as const;
+  export const Char = "grapheme" as const; // Alias for Grapheme
+}
+
+export type EmitUnit =
+  | typeof EmitUnit.Token
+  | typeof EmitUnit.Word
+  | typeof EmitUnit.Grapheme;
 
 export type FenceMarker = "```" | "~~~";
 
@@ -54,6 +64,11 @@ export type Event =
       metadata?: Record<string, any>;
     }
   | {
+      type: "end";
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
+  | {
       type: "error";
       reason: string;
       recoverable: boolean;
@@ -88,6 +103,12 @@ export interface ParserOptions {
    * Useful for testing or when you want to handle plugin errors silently.
    */
   suppressPluginErrors?: boolean;
+  /**
+   * Output release delay in milliseconds. Controls the emission rate by adding
+   * a delay between outputs when tokens are still available in the output buffer.
+   * This helps make emission smoother and more controlled. Defaults to 0 (no delay).
+   */
+  emitDelay?: number;
 }
 
 export interface IPlugin {

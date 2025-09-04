@@ -128,7 +128,7 @@ async function processTextAsync() {
   }
 
   console.log("\n🔄 Flushing parser...");
-  parser.flush();
+  await parser.flush();
 
   // Wait for async processing to complete
   await processingPromise;

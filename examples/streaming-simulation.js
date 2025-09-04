@@ -6,7 +6,7 @@
  * arrive from an AI model or network stream.
  */
 
-import { TokenLoom } from "../dist/index.esm.js";
+import { TokenLoom, EmitUnit } from "../dist/index.esm.js";
 
 // Sample text with custom tags and code fences
 const sampleText = `  Here is some intro text.
@@ -72,7 +72,8 @@ console.log("🌊 TokenLoom Streaming Simulation Example\n");
 
 // Create parser
 const parser = new TokenLoom({
-  emitUnit: "token",
+  emitUnit: EmitUnit.Grapheme,
+  emitDelay: 50, // Reasonable delay for demo
   bufferLength: 64, // Smaller buffer to demonstrate backpressure
   tags: ["think", "plan"],
   maxSpecialWaitBytes: 10,
@@ -134,7 +135,8 @@ for (const chunk of randomChunks(sampleText, 123)) {
 }
 
 console.log("\n🔄 Flushing remaining buffer...");
-parser.flush();
+await parser.flush();
+console.log("✅ Flush completed - all events processed!");
 
 console.log("\n" + "=".repeat(50));
 console.log("📊 Streaming Statistics");

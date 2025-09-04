@@ -114,34 +114,39 @@ parser.on("*", (event) => {
   events.push(event);
 });
 
-console.log("Processing sample text...\n");
+async function runExample() {
+  console.log("Processing sample text...\n");
 
-parser.feed({ text: sampleText });
-parser.flush();
+  parser.feed({ text: sampleText });
+  await parser.flush();
 
-console.log("\n" + "=".repeat(60));
-console.log("📋 Final Events Summary");
-console.log("=".repeat(60));
+  console.log("\n" + "=".repeat(60));
+  console.log("📋 Final Events Summary");
+  console.log("=".repeat(60));
 
-events.forEach((event, index) => {
-  if (event.type === "code-fence-chunk") {
-    console.log(`Event ${index + 1}:`);
-    console.log(`  Type: ${event.type}`);
-    console.log(`  Text: "${event.text}"`);
-    console.log(`  Original: "${event.metadata?.originalText || "N/A"}"`);
-    console.log(`  Highlighted: ${event.metadata?.highlighted || false}`);
-    console.log(`  Event ID: ${event.metadata?.eventId}`);
-    console.log(
-      `  Processing Chain: ${event.metadata?.processingChain?.join(" → ")}`
-    );
-    console.log(`  Final Phase: ${event.metadata?.phase}`);
-    console.log("");
-  }
-});
+  events.forEach((event, index) => {
+    if (event.type === "code-fence-chunk") {
+      console.log(`Event ${index + 1}:`);
+      console.log(`  Type: ${event.type}`);
+      console.log(`  Text: "${event.text}"`);
+      console.log(`  Original: "${event.metadata?.originalText || "N/A"}"`);
+      console.log(`  Highlighted: ${event.metadata?.highlighted || false}`);
+      console.log(`  Event ID: ${event.metadata?.eventId}`);
+      console.log(
+        `  Processing Chain: ${event.metadata?.processingChain?.join(" → ")}`
+      );
+      console.log(`  Final Phase: ${event.metadata?.phase}`);
+      console.log("");
+    }
+  });
 
-console.log("✅ Demo complete!");
-console.log("\n🔍 Notice the processing order:");
-console.log("   1. preTransform - adds metadata");
-console.log("   2. transform - applies syntax highlighting");
-console.log("   3. postTransform - adds analytics data");
-console.log("   4. onEvent - receives final processed event");
+  console.log("✅ Demo complete!");
+  console.log("\n🔍 Notice the processing order:");
+  console.log("   1. preTransform - adds metadata");
+  console.log("   2. transform - applies syntax highlighting");
+  console.log("   3. postTransform - adds analytics data");
+  console.log("   4. onEvent - receives final processed event");
+}
+
+// Run the example
+runExample().catch(console.error);

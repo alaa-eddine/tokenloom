@@ -21,5 +21,6 @@ export type Opts = Required<
     | "tags"
     | "specBufferLength"
     | "specMinParseLength"
+    | "emitDelay"
   >
 >;

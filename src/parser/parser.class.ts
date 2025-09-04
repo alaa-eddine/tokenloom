@@ -20,6 +20,7 @@ export class StreamingParser {
       tags: opts?.tags ?? [],
       specBufferLength: opts?.specBufferLength ?? opts?.bufferLength ?? 64,
       specMinParseLength: opts?.specMinParseLength ?? 10,
+      emitDelay: opts?.emitDelay ?? 0,
     };
     this.state = {
       context: {},

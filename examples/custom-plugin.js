@@ -310,46 +310,51 @@ parser.use(contentFilter); // Captures content from original events
 parser.use(htmlConverter); // Transforms events to HTML
 parser.use(textCollector); // Collects final transformed output
 
-console.log("Processing text with custom plugins...\n");
+async function runExample() {
+  console.log("Processing text with custom plugins...\n");
 
-// Process the text
-parser.feed({ text: sampleText });
-parser.flush();
+  // Process the text
+  parser.feed({ text: sampleText });
+  await parser.flush();
 
-// Get the HTML output from the HTML converter
-const htmlOutput = htmlConverter.getHTML(parser);
+  // Get the HTML output from the HTML converter
+  const htmlOutput = htmlConverter.getHTML(parser);
 
-console.log("=".repeat(60));
-console.log("🎨 HTML Output");
-console.log("=".repeat(60));
-console.log(htmlOutput);
+  console.log("=".repeat(60));
+  console.log("🎨 HTML Output");
+  console.log("=".repeat(60));
+  console.log(htmlOutput);
 
-console.log("\n" + "=".repeat(60));
-console.log("📊 Content Statistics");
-console.log("=".repeat(60));
-const stats = statsCollector.getStats(parser);
-console.log(`📝 Total text characters: ${stats.totalText}`);
-console.log(`🏷️  Total tags: ${stats.totalTags}`);
-console.log(`💻 Total code blocks: ${stats.totalCodeBlocks}`);
-console.log(`🎯 Tag types found: ${stats.tagTypes.join(", ")}`);
-console.log(`🔤 Code languages: ${stats.codeLanguages.join(", ")}`);
+  console.log("\n" + "=".repeat(60));
+  console.log("📊 Content Statistics");
+  console.log("=".repeat(60));
+  const stats = statsCollector.getStats(parser);
+  console.log(`📝 Total text characters: ${stats.totalText}`);
+  console.log(`🏷️  Total tags: ${stats.totalTags}`);
+  console.log(`💻 Total code blocks: ${stats.totalCodeBlocks}`);
+  console.log(`🎯 Tag types found: ${stats.tagTypes.join(", ")}`);
+  console.log(`🔤 Code languages: ${stats.codeLanguages.join(", ")}`);
 
-console.log("\n" + "=".repeat(60));
-console.log("🔍 Filtered Content");
-console.log("=".repeat(60));
-const filteredContent = contentFilter.getFilteredContent(parser);
-if (filteredContent.length === 0) {
-  console.log("No filtered content found.");
-} else {
-  filteredContent.forEach((item, index) => {
-    console.log(
-      `${index + 1}. [${item.type.toUpperCase()}] ${item.content.trim()}`
-    );
-    if (item.language) {
-      console.log(`   Language: ${item.language}`);
-    }
-    console.log(`   Timestamp: ${item.timestamp}\n`);
-  });
+  console.log("\n" + "=".repeat(60));
+  console.log("🔍 Filtered Content");
+  console.log("=".repeat(60));
+  const filteredContent = contentFilter.getFilteredContent(parser);
+  if (filteredContent.length === 0) {
+    console.log("No filtered content found.");
+  } else {
+    filteredContent.forEach((item, index) => {
+      console.log(
+        `${index + 1}. [${item.type.toUpperCase()}] ${item.content.trim()}`
+      );
+      if (item.language) {
+        console.log(`   Language: ${item.language}`);
+      }
+      console.log(`   Timestamp: ${item.timestamp}\n`);
+    });
+  }
+
+  console.log("✅ Custom plugin example complete!");
 }
 
-console.log("✅ Custom plugin example complete!");
+// Run the example
+runExample().catch(console.error);

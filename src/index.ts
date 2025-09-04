@@ -1,10 +1,10 @@
 export { TokenLoom } from "./tokenloom";
+export { EmitUnit } from "./types";
 export type {
   Event,
   ParserOptions,
   Plugin,
   PluginAPI,
-  EmitUnit,
   SourceChunk,
   Context,
 } from "./types";
