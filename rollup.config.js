@@ -14,21 +14,14 @@ export default defineConfig([
       exports: "auto",
     },
     plugins: [
-      // Use TS only for typechecking; do not emit declarations here
-      typescript({
-        tsconfig: "./tsconfig.json",
-        declaration: false,
-        emitDeclarationOnly: false,
-        rootDir: "src",
-      }),
       esbuild({
         target: "node18",
         minify: false,
       }),
     ],
     external: (id) => {
-      // Mark all node_modules as external
-      return !id.startsWith(".") && !id.startsWith("/");
+      // Only mark node_modules as external, bundle our own code
+      return id.includes("node_modules");
     },
   },
   // ES Module build (bundled)

@@ -1,6 +1,6 @@
 {
   "name": "tokenloom",
-  "version": "1.0.2",
+  "version": "1.0.5",
   "description": "A streaming text parser with custom tag and code fence detection for Node.js",
   "type": "module",
   "main": "dist/index.cjs",
@@ -31,6 +31,14 @@
   ],
   "author": "Alaa-eddine KADDOURI",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alaa-eddine/tokenloom.git"
+  },
+  "bugs": {
+    "url": "https://github.com/alaa-eddine/tokenloom/issues"
+  },
+  "homepage": "https://github.com/alaa-eddine/tokenloom#readme",
   "devDependencies": {
     "@rollup/plugin-typescript": "^11.1.5",
     "@types/node": "^20.8.0",

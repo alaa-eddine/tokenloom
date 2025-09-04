@@ -237,7 +237,8 @@ node examples/basic-parsing.js
 node examples/streaming-simulation.js
 
 # Syntax highlighting demo with transformation pipeline
-node examples/syntax-highlighting-demo.js
+node examples/streaming-syntax-coloring/index.js
+
 
 # Pipeline phases demonstration
 node examples/pipeline-phases-demo.js
