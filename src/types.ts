@@ -69,6 +69,11 @@ export type Event =
       metadata?: Record<string, any>;
     }
   | {
+      type: "buffer-released";
+      context: Record<string, any>;
+      metadata?: Record<string, any>;
+    }
+  | {
       type: "error";
       reason: string;
       recoverable: boolean;

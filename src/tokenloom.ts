@@ -22,6 +22,12 @@ export class TokenLoom extends EventEmitter {
   private isProcessingDelay: boolean = false;
   private flushPromises: Array<() => void> = [];
 
+  // Buffer release tracking
+  private onceListeners: Array<{
+    eventType: string;
+    listener: (event: Event) => void;
+  }> = [];
+
   constructor(opts?: ParserOptions) {
     super();
     this.options = opts ?? {};
@@ -43,6 +49,17 @@ export class TokenLoom extends EventEmitter {
     return this.sharedContext;
   }
 
+  /**
+   * Add a one-time event listener that will be called when the buffer is empty.
+   * This ensures the listener won't interfere with the current stream.
+   */
+  once(eventType: string, listener: (event: Event) => void): this {
+    this.onceListeners.push({ eventType, listener });
+    // If buffer is already empty, trigger immediately
+    this.checkForBufferRelease();
+    return this;
+  }
+
   private dispatch(events: Event[]): void {
     const emitDelay = this.options.emitDelay ?? 0;
 
@@ -60,6 +77,8 @@ export class TokenLoom extends EventEmitter {
     for (const e of events) {
       this.emitSingleEvent(e);
     }
+    // After synchronous dispatch, check for buffer release
+    this.checkForBufferRelease();
   }
 
   private startDelayedProcessing(delay: number): void {
@@ -107,6 +126,50 @@ export class TokenLoom extends EventEmitter {
       while (this.flushPromises.length > 0) {
         const resolve = this.flushPromises.shift()!;
         resolve();
+      }
+    }
+
+    // Always check for buffer release when delay queue is empty
+    this.checkForBufferRelease();
+  }
+
+  private checkForBufferRelease(): void {
+    if (this.delayQueue.length === 0 && !this.isProcessingDelay) {
+      // Emit buffer-released event
+      const bufferReleasedEvent = {
+        type: "buffer-released" as const,
+        context: this.sharedContext,
+        metadata: { timestamp: Date.now() },
+      };
+      this.emitSingleEvent(bufferReleasedEvent);
+
+      // Process any pending once listeners
+      this.processOnceListeners();
+    }
+  }
+
+  private processOnceListeners(): void {
+    if (this.onceListeners.length === 0) return;
+
+    const listenersToProcess = [...this.onceListeners];
+    this.onceListeners = [];
+
+    for (const { eventType, listener } of listenersToProcess) {
+      // Create a synthetic event for the once listener
+      const syntheticEvent = {
+        type: eventType as any,
+        context: this.sharedContext,
+        metadata: {
+          synthetic: true,
+          timestamp: Date.now(),
+          reason: "buffer-empty",
+        },
+      };
+
+      try {
+        listener(syntheticEvent);
+      } catch (error) {
+        console.error(`Error in once listener for ${eventType}:`, error);
       }
     }
   }
@@ -178,8 +241,9 @@ export class TokenLoom extends EventEmitter {
       const resolve = this.flushPromises.shift()!;
       resolve();
     }
-    // Clear delay queue
+    // Clear delay queue and once listeners
     this.delayQueue = [];
+    this.onceListeners = [];
     this.isProcessingDelay = false;
   }
 
