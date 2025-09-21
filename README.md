@@ -49,7 +49,11 @@ Perfect for AI applications, real-time chat systems, streaming markdown processo
 
 - **Streaming-safe detection** of custom tags and code fences
 - **Incremental emission**: does not block waiting for closers; emits start, progressive chunks, then end
-- **Configurable segmentation**: token, word, or grapheme units
+- **Configurable segmentation**: token, word, or grapheme units with named constants (`EmitUnit.Token`, `EmitUnit.Word`, `EmitUnit.Grapheme`)
+- **Controlled emission timing**: configurable delays between outputs for smooth streaming
+- **Async completion tracking**: `flush()` returns Promise, `end` event signals complete processing
+- **Buffer monitoring**: `buffer-released` events track when output buffer becomes empty
+- **Non-interfering display**: `once()` method for status updates that wait for buffer to be empty
 - **Plugin system**: pluggable post-processing via simple event hooks
 - **Backpressure-friendly**: exposes high-water marks and flushing
 
@@ -63,6 +67,33 @@ Perfect for AI applications, real-time chat systems, streaming markdown processo
 npm install tokenloom
 ```
 
+### Browser Usage
+
+TokenLoom includes a browser-compatible build that can be used directly in web browsers:
+
+```html
+<script src="node_modules/tokenloom/dist/index.browser.js"></script>
+<script>
+  // Simple syntax - TokenLoom is available directly
+  const parser = new TokenLoom();
+
+  // All exports are also available as properties
+  const { EmitUnit, LoggerPlugin } = TokenLoom;
+
+  // Use parser as normal...
+</script>
+```
+
+Or with a CDN:
+
+```html
+<script src="https://unpkg.com/tokenloom/dist/index.browser.js"></script>
+```
+
+The browser build includes all necessary polyfills and works in modern browsers without additional dependencies.
+
+### Development
+
 For development:
 
 ```bash
@@ -75,16 +106,21 @@ npm run build
 ## Quick start
 
 ```ts
-import { TokenLoom } from "tokenloom";
+import { TokenLoom, EmitUnit } from "tokenloom";
 
 const parser = new TokenLoom({
   tags: ["think"], // tags to recognize
-  emitUnit: "word", // emit words instead of tokens
+  emitUnit: EmitUnit.Word, // emit words instead of tokens
+  emitDelay: 50, // 50ms delay between emissions for smooth output
 });
 
 // Listen to events directly
 parser.on("text", (event) => process.stdout.write(event.text));
 parser.on("tag-open", (event) => console.log(`\n[${event.name}]`));
+parser.on("end", () => console.log("\n✅ Processing complete!"));
+
+// Non-interfering information display
+parser.once("status", () => console.log("📊 Status: Ready"));
 
 const input = `Hello <think>reasoning</think> world!`;
 
@@ -92,7 +128,9 @@ const input = `Hello <think>reasoning</think> world!`;
 for (const chunk of ["Hello <thi", "nk>reason", "ing</think> world!"]) {
   parser.feed({ text: chunk });
 }
-parser.flush();
+
+// Wait for all processing to complete
+await parser.flush();
 ```
 
 See `examples/` directory for advanced usage including syntax highlighting, async processing, and custom plugins.
@@ -106,7 +144,18 @@ new TokenLoom(opts?: ParserOptions)
 ```
 
 ```ts
-type EmitUnit = "token" | "word" | "grapheme";
+// Named constants for emit units
+namespace EmitUnit {
+  export const Token = "token";
+  export const Word = "word";
+  export const Grapheme = "grapheme";
+  export const Char = "grapheme"; // Alias for Grapheme
+}
+
+type EmitUnit =
+  | typeof EmitUnit.Token
+  | typeof EmitUnit.Word
+  | typeof EmitUnit.Grapheme;
 
 interface ParserOptions {
   emitUnit?: EmitUnit; // default "token"
@@ -130,6 +179,12 @@ interface ParserOptions {
    * Useful for testing or when you want to handle plugin errors silently.
    */
   suppressPluginErrors?: boolean;
+  /**
+   * Output release delay in milliseconds. Controls the emission rate by adding
+   * a delay between outputs when tokens are still available in the output buffer.
+   * This helps make emission smoother and more controlled. Defaults to 0 (no delay).
+   */
+  emitDelay?: number;
 }
 ```
 
@@ -138,7 +193,8 @@ interface ParserOptions {
 - `use(plugin: IPlugin): this` – registers a plugin
 - `remove(plugin: IPlugin): this` – removes a plugin
 - `feed(chunk: SourceChunk): void` – push-mode; feed streamed text
-- `flush(): void` – force flush remaining buffered content and emit `flush`
+- `flush(): Promise<void>` – force flush remaining buffered content and emit `flush`, resolves when all output is released
+- `once(eventType: string, listener: Function): this` – add one-time listener that waits for buffer to be empty before executing
 - `dispose(): void` – cleanup resources and dispose all plugins
 - `getSharedContext(): Record<string, any>` – access the shared context object used across events
 - `[Symbol.asyncIterator](): AsyncIterator<Event>` – pull-mode consumption
@@ -162,6 +218,8 @@ TokenLoom emits the following event types:
 - **`code-fence-chunk`** - Code block content
 - **`code-fence-end`** - Code block end
 - **`flush`** - Parsing complete, buffers flushed
+- **`end`** - Emitted after flush when all output processing is complete
+- **`buffer-released`** - Emitted whenever the output buffer is completely emptied
 
 Each event includes:
 
@@ -201,16 +259,25 @@ See `examples/syntax-highlighting-demo.js` for advanced plugin usage.
 ### Streaming text processing
 
 ```ts
-const parser = new TokenLoom({ tags: ["think"], emitUnit: "word" });
+const parser = new TokenLoom({
+  tags: ["think"],
+  emitUnit: EmitUnit.Word,
+  emitDelay: 100, // Smooth output with 100ms delays
+});
 
 parser.on("text", (event) => process.stdout.write(event.text));
 parser.on("tag-open", (event) => console.log(`[${event.name}]`));
+parser.on("buffer-released", () => console.log("📤 Buffer empty"));
+
+// Non-interfering status updates
+parser.once("debug-info", () => console.log("🔍 Debug: Processing stream"));
 
 // Simulate streaming chunks
 for (const chunk of ["Hello <thi", "nk>thought</th", "ink> world"]) {
   parser.feed({ text: chunk });
 }
-parser.flush();
+
+await parser.flush(); // Wait for completion
 ```
 
 ### AsyncIterator support
@@ -218,8 +285,52 @@ parser.flush();
 ```ts
 for await (const event of parser) {
   console.log(`${event.type}: ${event.text || event.name || ""}`);
-  if (event.type === "flush") break;
+  if (event.type === "end") break; // Wait for complete processing
 }
+```
+
+### Advanced features
+
+#### Controlled emission timing
+
+```ts
+const parser = new TokenLoom({
+  emitDelay: 200, // 200ms between emissions
+  emitUnit: EmitUnit.Grapheme,
+});
+
+// Events will be emitted with smooth 200ms delays
+parser.feed({ text: "Streaming text..." });
+await parser.flush(); // Waits for all delayed emissions
+```
+
+#### Non-interfering information display
+
+```ts
+// Display info without interrupting the stream
+parser.once("status-update", () => {
+  console.log("📊 Processing 50% complete");
+});
+
+parser.once("debug-info", () => {
+  console.log("🔍 Memory usage: 45MB");
+});
+
+// These will execute when buffer is empty, not interfering with output
+```
+
+#### Buffer monitoring
+
+```ts
+parser.on("buffer-released", (event) => {
+  console.log(`📤 Buffer emptied at ${event.metadata.timestamp}`);
+  // Triggered every time output buffer becomes completely empty
+});
+
+parser.on("end", () => {
+  console.log("🏁 All processing complete");
+  // Triggered after flush() when everything is done
+});
 ```
 
 ## Examples

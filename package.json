@@ -1,10 +1,11 @@
 {
   "name": "tokenloom",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "A streaming text parser with custom tag and code fence detection for Node.js",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.esm.js",
+  "browser": "dist/index.browser.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist"
@@ -48,11 +49,15 @@
     "rollup": "^4.0.0",
     "rollup-plugin-dts": "^6.1.1",
     "rollup-plugin-esbuild": "^6.1.0",
+    "rollup-plugin-polyfill-node": "^0.13.0",
     "tslib": "^2.6.2",
     "typescript": "^5.2.0",
     "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "events": "^3.3.0"
   }
 }

@@ -14,6 +14,11 @@ TokenLoom is a TypeScript library for progressively parsing streamed text (LLM/S
 - EventEmitter integration for direct event listening via `parser.on()`
 - Shared context system for persistent state coordination across events
 - Enhanced word segmentation treating comment operators (`//`, `/*`, `*/`) as single units
+- Named `EmitUnit` constants (`Token`, `Word`, `Grapheme`, `Char`) for type-safe configuration
+- Configurable emission delays (`emitDelay`) for smooth streaming output control
+- Async `flush()` with Promise return and completion tracking via `end` event
+- Buffer monitoring with `buffer-released` events
+- Non-interfering information display via `once()` method
 
 Design intent:
 
@@ -92,10 +97,16 @@ All tests must pass before merging.
   - `specBufferLength`: max chars to wait for special sequence completion.
   - `specMinParseLength`: min chars before attempting special sequence parsing.
   - `suppressPluginErrors`: optional boolean to suppress plugin error console output (useful for testing).
-  - `flush()` must emit any remaining text/code chunks and then a `flush` event.
+  - `emitDelay`: milliseconds to wait between emissions for smooth output control.
+  - `flush()` must emit any remaining text/code chunks, then `flush` event, then `end` event.
 - Segmentation:
-  - `emitUnit`: "token" | "word" | "grapheme"; do not split surrogate pairs; prefer `Intl.Segmenter` when available.
+  - `emitUnit`: Use `EmitUnit.Token`, `EmitUnit.Word`, `EmitUnit.Grapheme`, or `EmitUnit.Char` constants.
+  - Do not split surrogate pairs; prefer `Intl.Segmenter` when available.
   - Enhanced word segmentation treats comment operators (`//`, `/*`, `*/`) as single units for better syntax highlighting support.
+- Event system:
+  - `buffer-released`: emitted when output buffer becomes completely empty.
+  - `end`: emitted after `flush` when all processing (including delayed emissions) is complete.
+  - `once(eventType, listener)`: adds one-time listeners that wait for buffer to be empty before executing.
 
 ## Common tasks
 
@@ -113,6 +124,9 @@ All tests must pass before merging.
 - Public API → `src/index.ts`, `src/tokenloom.ts`
   - TokenLoom extends EventEmitter for direct event listening
   - `getSharedContext()` provides access to persistent event context
+  - `flush()` returns Promise<void> that resolves when all output is released
+  - `once(eventType, listener)` for non-interfering status display
+  - Emits `buffer-released` and `end` events for advanced flow control
 
 After changes:
 
@@ -147,11 +161,14 @@ After changes:
 - Incomplete tag starts: if buffer ends with `<`, wait; do not emit as text.
 - Fragmented fences: do not emit `code-fence-start` until the newline is seen (to capture `lang`).
 - Indented fences: allow up to 3 spaces both for opening and closing.
-- Flush must close an open fence by emitting remaining `code-fence-chunk` (if any) then `code-fence-end` and `flush`.
+- Flush must close an open fence by emitting remaining `code-fence-chunk` (if any) then `code-fence-end`, `flush`, and `end`.
 - **Plugin usage**: Use transformation methods (`preTransform`, `transform`, `postTransform`); use `parser.on()` for event consumption.
 - **Context initialization**: Always check `if (!event.context.myPlugin)` before accessing plugin-specific context.
 - **Event mutation**: Transformation pipeline modifies events in-place; be careful with shared references.
-- **Comment segmentation**: Use `emitUnit: "word"` for syntax highlighting to get comment operators as single tokens.
+- **Comment segmentation**: Use `emitUnit: EmitUnit.Word` for syntax highlighting to get comment operators as single tokens.
+- **Async flush**: Always `await parser.flush()` to ensure all delayed emissions complete.
+- **Buffer events**: `buffer-released` fires after each batch; `end` fires after flush completion.
+- **Once listeners**: Memory is automatically released after execution; use for non-interfering status display.
 
 ## Security & performance
 
